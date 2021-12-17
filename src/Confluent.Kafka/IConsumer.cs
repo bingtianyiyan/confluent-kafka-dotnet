@@ -57,6 +57,14 @@ namespace Confluent.Kafka
         /// </exception>
         ConsumeResult<TKey, TValue> Consume(CancellationToken cancellationToken = default(CancellationToken));
 
+        /// <summary>
+        /// batch
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <param name="batchSize"></param>
+        /// <returns></returns>
+        List<ConsumeResult<TKey, TValue>> ConsumeBatch(CancellationToken cancellationToken = default(CancellationToken), int batchSize = 1);
+
 
         /// <summary>
         ///     Poll for new messages / events. Blocks

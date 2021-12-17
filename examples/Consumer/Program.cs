@@ -59,7 +59,7 @@ namespace Confluent.Kafka.Examples.ConsumerExample
             using (var consumer = new ConsumerBuilder<Ignore, string>(config)
                 // Note: All handlers are called on the main .Consume thread.
                 .SetErrorHandler((_, e) => Console.WriteLine($"Error: {e.Reason}"))
-                .SetStatisticsHandler((_, json) => Console.WriteLine($"Statistics: {json}"))
+               // .SetStatisticsHandler((_, json) => Console.WriteLine($"Statistics: {json}"))
                 .SetPartitionsAssignedHandler((c, partitions) =>
                 {
                     Console.WriteLine($"Assigned partitions: [{string.Join(", ", partitions)}]");
@@ -78,6 +78,45 @@ namespace Confluent.Kafka.Examples.ConsumerExample
 
                 try
                 {
+                    while (true)
+                    {
+                        try
+                        {
+                            ConsumeResult<Ignore, string> commitResult = null;
+                            try
+                            {
+                                var consumeResultList = consumer.ConsumeBatch(cancellationToken, 5);
+                                foreach (var consumeResult in consumeResultList)
+                                {
+                                    Console.WriteLine($"Received message at {consumeResult.TopicPartitionOffset}: {consumeResult.Value}");
+                                    //handler func 执行具体业务
+
+                                    commitResult = consumeResult;
+                                }
+                            }catch(KafkaException e)
+                            {
+                                Console.WriteLine($"Commit error: {e.Error.Reason}");
+                            }
+                            catch (Exception e1)
+                            {
+                                Console.WriteLine($"Commit error: {e1}");
+                            }
+                            finally
+                            {
+                                if(commitResult != null)
+                                {
+                                    consumer.Commit(commitResult);
+                                }
+                            }                         
+
+                        }
+                        catch (ConsumeException e)
+                        {
+                            Console.WriteLine($"Consume error: {e.Error.Reason}");
+                        }
+                    }
+
+                    /**
                     while (true)
                     {
                         try
@@ -117,6 +156,7 @@ namespace Confluent.Kafka.Examples.ConsumerExample
                             Console.WriteLine($"Consume error: {e.Error.Reason}");
                         }
                     }
+                    **/
                 }
                 catch (OperationCanceledException)
                 {
@@ -184,15 +224,15 @@ namespace Confluent.Kafka.Examples.ConsumerExample
 
         public static void Main(string[] args)
         {
-            if (args.Length < 3)
-            {
-                PrintUsage();
-                return;
-            }
+            //if (args.Length < 3)
+            //{
+            //    PrintUsage();
+            //    return;
+            //}
 
-            var mode = args[0];
-            var brokerList = args[1];
-            var topics = args.Skip(2).ToList();
+            var mode = "subscribe";// args[0];
+            var brokerList = "172.28.32.167:9092";// args[1];
+            var topics = new List<string>() { "test" };//args.Skip(2).ToList();
 
             Console.WriteLine($"Started consumer, Ctrl-C to stop consuming");
 

@@ -17,6 +17,7 @@
 // Refer to LICENSE for more information.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -842,6 +843,40 @@ namespace Confluent.Kafka
                 return result;
             }
         }
+
+        #region Batch
+        /// <summary>
+        ///     Refer to <see cref="Confluent.Kafka.IConsumer{TKey, TValue}.Consume(CancellationToken)" />
+        /// </summary>
+        public List<ConsumeResult<TKey, TValue>> ConsumeBatch(CancellationToken cancellationToken = default(CancellationToken),int batchSize = 1)
+        {
+            ConcurrentQueue<ConsumeResult<TKey, TValue>> queue = new ConcurrentQueue<ConsumeResult<TKey, TValue>>();
+            while (true)
+            {
+                // Note: An alternative to throwing on cancellation is to return null,
+                // but that would be problematic downstream (require null checks).
+                cancellationToken.ThrowIfCancellationRequested();
+                ConsumeResult<TKey, TValue> result = ConsumeImpl<TKey, TValue>(cancellationDelayMaxMs, keyDeserializer, valueDeserializer);
+                if (result == null && queue.Count == 0)
+                {
+                    continue;
+                }
+                if (result != null && result.IsPartitionEOF != true)
+                {
+                    queue.Enqueue(result);
+                }
+
+                if(queue.Count >= batchSize 
+                    || queue.Count > 0 && result == null)
+                {
+                    Console.WriteLine($"Print queue Count:{queue.Count}");
+                    return queue.ToList();
+                }
+                continue;
+            }
+        }
+
+        #endregion
 
 
         /// <summary>
