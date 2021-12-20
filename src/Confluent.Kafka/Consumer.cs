@@ -912,7 +912,7 @@ namespace Confluent.Kafka
            IDeserializer<V> valueDeserializer,
            int bathSize = 1)
         {
-            List<ConsumeResult<K, V>> queue = null;
+            List<ConsumeResult<K, V>> queue = new List<ConsumeResult<K, V>>(bathSize);
             Int64 end = Timestamp.DateTimeToUnixTimestampMs(DateTime.Now) + millisecondsTimeout;
             long remaining_timeout = millisecondsTimeout;
             while (queue.Count < bathSize)
@@ -1059,10 +1059,6 @@ namespace Confluent.Kafka
                             },
                             new Error(ErrorCode.Local_ValueDeserialization),
                             ex);
-                    }
-                    if(queue == null)
-                    {
-                        queue = new List<ConsumeResult<K, V>>(bathSize);
                     }
 
                     queue.Add(new ConsumeResult<K, V>
