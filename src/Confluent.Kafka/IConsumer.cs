@@ -92,6 +92,11 @@ namespace Confluent.Kafka
         /// </exception>
         ConsumeResult<TKey, TValue> Consume(TimeSpan timeout);
 
+        /// <summary>
+        ///     Refer to <see cref="Confluent.Kafka.IConsumer{TKey, TValue}.Consume(TimeSpan)" />
+        /// </summary>
+        List<ConsumeResult<TKey, TValue>> ConsumeBatch(TimeSpan timeout, int bathSize = 1);
+
 
         /// <summary>
         ///     Gets the (dynamic) group member id of

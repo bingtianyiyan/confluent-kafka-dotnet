@@ -221,6 +221,107 @@ namespace Confluent.Kafka.Examples.ConsumerExample
             }
         }
 
+        /// <summary>
+        ///     In this example
+        ///         - offsets are manually committed.
+        ///         - no extra thread is created for the Poll (Consume) loop.
+        /// </summary>
+        public static void Run_ConsumeBatchNew(string brokerList, List<string> topics, CancellationToken cancellationToken)
+        {
+            var config = new ConsumerConfig
+            {
+                BootstrapServers = brokerList,
+                GroupId = "csharp-consumer",
+                EnableAutoCommit = false,
+                StatisticsIntervalMs = 5000,
+                SessionTimeoutMs = 6000,
+                AutoOffsetReset = AutoOffsetReset.Earliest,
+                EnablePartitionEof = true
+            };
+            //每批次大小
+            const int batchNum = 1000;
+
+            // Note: If a key or value deserializer is not set (as is the case below), the 
+            // deserializer corresponding to the appropriate type from Confluent.Kafka.Deserializers
+            // will be used automatically (where available). The default deserializer for string
+            // is UTF8. The default deserializer for Ignore returns null for all input data
+            // (including non-null data).
+            using (var consumer = new ConsumerBuilder<Ignore, string>(config)
+                // Note: All handlers are called on the main .Consume thread.
+                .SetErrorHandler((_, e) => Console.WriteLine($"Error: {e.Reason}"))
+                // .SetStatisticsHandler((_, json) => Console.WriteLine($"Statistics: {json}"))
+                .SetPartitionsAssignedHandler((c, partitions) =>
+                {
+                    Console.WriteLine($"Assigned partitions: [{string.Join(", ", partitions)}]");
+                    // possibly manually specify start offsets or override the partition assignment provided by
+                    // the consumer group by returning a list of topic/partition/offsets to assign to, e.g.:
+                    // 
+                    // return partitions.Select(tp => new TopicPartitionOffset(tp, externalOffsets[tp]));
+                })
+                .SetPartitionsRevokedHandler((c, partitions) =>
+                {
+                    Console.WriteLine($"Revoking assignment: [{string.Join(", ", partitions)}]");
+                })
+                .Build())
+            {
+                consumer.Subscribe(topics);
+
+                try
+                {
+                    while (true)
+                    {
+                        try
+                        {
+                            ConsumeResult<Ignore, string> commitResult = null;
+                            try
+                            {
+                                var consumeResultList = consumer.ConsumeBatch(TimeSpan.FromSeconds(10), batchNum);
+#if DEBUG 
+                                Console.WriteLine($"Queue count:{consumeResultList?.Count()}");
+#endif
+                                if(consumeResultList == null || consumeResultList.Count == 0)
+                                {
+                                    continue;
+                                }
+                                foreach (var consumeResult in consumeResultList)
+                                {
+                                    Console.WriteLine($"Received message at {consumeResult.TopicPartitionOffset}: {consumeResult.Value}");
+                                    //handler func 执行具体业务
+
+                                    commitResult = consumeResult;
+                                }
+                            }
+                            catch (KafkaException e)
+                            {
+                                Console.WriteLine($"Commit error: {e.Error.Reason}");
+                            }
+                            catch (Exception e1)
+                            {
+                                Console.WriteLine($"Commit error: {e1}");
+                            }
+                            finally
+                            {
+                                if (commitResult != null)
+                                {
+                                    consumer.Commit(commitResult);
+                                }
+                            }
+
+                        }
+                        catch (ConsumeException e)
+                        {
+                            Console.WriteLine($"Consume error: {e.Error.Reason}");
+                        }
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    Console.WriteLine("Closing consumer.");
+                    consumer.Close();
+                }
+            }
+        }
+
 
         /// <summary>
         ///     In this example
@@ -280,15 +381,20 @@ namespace Confluent.Kafka.Examples.ConsumerExample
 
         public static void Main(string[] args)
         {
+#if DEBUG
+            var mode = "subscribeBatchNew";// args[0];
+            var brokerList = "127.0.0.1:9092";// args[1];
+            var topics = new List<string>() { "test" };// args.Skip(2).ToList();
+#else
             if (args.Length < 3)
             {
                 PrintUsage();
                 return;
             }
-
-            var mode = args[0];
-            var brokerList =  args[1];
-            var topics = args.Skip(2).ToList();
+           var mode =  args[0];
+            var brokerList =args[1];
+            var topics =  args.Skip(2).ToList();
+#endif
 
             Console.WriteLine($"Started consumer, Ctrl-C to stop consuming");
 
@@ -308,6 +414,9 @@ namespace Confluent.Kafka.Examples.ConsumerExample
                     break;
                 case "subscribeBatch":
                     Run_ConsumeBatch(brokerList, topics, cts.Token);
+                    break;
+                case "subscribeBatchNew":
+                    Run_ConsumeBatchNew(brokerList, topics, cts.Token);
                     break;
                 default:
                     PrintUsage();
