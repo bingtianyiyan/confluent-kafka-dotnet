@@ -850,7 +850,7 @@ namespace Confluent.Kafka
         /// </summary>
         public List<ConsumeResult<TKey, TValue>> ConsumeBatch(CancellationToken cancellationToken = default(CancellationToken),int batchSize = 1)
         {
-            ConcurrentQueue<ConsumeResult<TKey, TValue>> queue = new ConcurrentQueue<ConsumeResult<TKey, TValue>>();
+            List<ConsumeResult<TKey, TValue>> queue = new List<ConsumeResult<TKey, TValue>>(batchSize);
             while (true)
             {
                 // Note: An alternative to throwing on cancellation is to return null,
@@ -863,14 +863,16 @@ namespace Confluent.Kafka
                 }
                 if (result != null && result.IsPartitionEOF != true)
                 {
-                    queue.Enqueue(result);
+                    queue.Add(result);
                 }
 
                 if(queue.Count >= batchSize 
                     || queue.Count > 0 && result == null)
                 {
+#if DEBUG
                     Console.WriteLine($"Print queue Count:{queue.Count}");
-                    return queue.ToList();
+#endif
+                    return queue;
                 }
                 continue;
             }

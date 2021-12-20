@@ -144,8 +144,8 @@ namespace Confluent.Kafka.Examples.ConsumerExample
                 AutoOffsetReset = AutoOffsetReset.Earliest,
                 EnablePartitionEof = true
             };
-
-            const int commitPeriod = 5;
+            //每批次大小
+            const int batchNum = 5;
 
             // Note: If a key or value deserializer is not set (as is the case below), the 
             // deserializer corresponding to the appropriate type from Confluent.Kafka.Deserializers
@@ -181,7 +181,7 @@ namespace Confluent.Kafka.Examples.ConsumerExample
                             ConsumeResult<Ignore, string> commitResult = null;
                             try
                             {
-                                var consumeResultList = consumer.ConsumeBatch(cancellationToken, 5);
+                                var consumeResultList = consumer.ConsumeBatch(cancellationToken, batchNum);
                                 foreach (var consumeResult in consumeResultList)
                                 {
                                     Console.WriteLine($"Received message at {consumeResult.TopicPartitionOffset}: {consumeResult.Value}");
@@ -212,48 +212,6 @@ namespace Confluent.Kafka.Examples.ConsumerExample
                             Console.WriteLine($"Consume error: {e.Error.Reason}");
                         }
                     }
-
-                    /**
-                    while (true)
-                    {
-                        try
-                        {
-                            var consumeResult = consumer.Consume(cancellationToken);
-
-                            if (consumeResult.IsPartitionEOF)
-                            {
-                                Console.WriteLine(
-                                    $"Reached end of topic {consumeResult.Topic}, partition {consumeResult.Partition}, offset {consumeResult.Offset}.");
-
-                                continue;
-                            }
-
-                            Console.WriteLine($"Received message at {consumeResult.TopicPartitionOffset}: {consumeResult.Value}");
-
-                            if (consumeResult.Offset % commitPeriod == 0)
-                            {
-                                // The Commit method sends a "commit offsets" request to the Kafka
-                                // cluster and synchronously waits for the response. This is very
-                                // slow compared to the rate at which the consumer is capable of
-                                // consuming messages. A high performance application will typically
-                                // commit offsets relatively infrequently and be designed handle
-                                // duplicate messages in the event of failure.
-                                try
-                                {
-                                    consumer.Commit(consumeResult);
-                                }
-                                catch (KafkaException e)
-                                {
-                                    Console.WriteLine($"Commit error: {e.Error.Reason}");
-                                }
-                            }
-                        }
-                        catch (ConsumeException e)
-                        {
-                            Console.WriteLine($"Consume error: {e.Error.Reason}");
-                        }
-                    }
-                    **/
                 }
                 catch (OperationCanceledException)
                 {
