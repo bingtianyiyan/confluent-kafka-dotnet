@@ -850,32 +850,7 @@ namespace Confluent.Kafka
         /// </summary>
         public List<ConsumeResult<TKey, TValue>> ConsumeBatch(CancellationToken cancellationToken = default(CancellationToken),int batchSize = 1)
         {
-            List<ConsumeResult<TKey, TValue>> queue = new List<ConsumeResult<TKey, TValue>>(batchSize);
-            while (true)
-            {
-                // Note: An alternative to throwing on cancellation is to return null,
-                // but that would be problematic downstream (require null checks).
-                cancellationToken.ThrowIfCancellationRequested();
-                ConsumeResult<TKey, TValue> result = ConsumeImpl<TKey, TValue>(cancellationDelayMaxMs, keyDeserializer, valueDeserializer);
-                if (result == null && queue.Count == 0)
-                {
-                    continue;
-                }
-                if (result != null && result.IsPartitionEOF != true)
-                {
-                    queue.Add(result);
-                }
-
-                if(queue.Count >= batchSize 
-                    || queue.Count > 0 && result == null)
-                {
-#if DEBUG
-                    Console.WriteLine($"Print queue Count:{queue.Count}");
-#endif
-                    return queue;
-                }
-                continue;
-            }
+           return ConsumeBatchImpl<TKey, TValue>(cancellationDelayMaxMs, keyDeserializer, valueDeserializer, batchSize);
         }
 
         #endregion
