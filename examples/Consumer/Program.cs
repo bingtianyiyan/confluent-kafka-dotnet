@@ -294,13 +294,35 @@ namespace Confluent.Kafka.Examples.ConsumerExample
                                 {
                                     continue;
                                 }
-                                foreach (var consumeResult in consumeResultList)
-                                {
-                                    Console.WriteLine($"Received message at {consumeResult.TopicPartitionOffset}: {consumeResult.Value}");
-                                    //handler func 执行具体业务
 
-                                    offsets.Add(consumeResult.TopicPartitionOffset);
+                                //根据partion分组提交偏移量
+                                var partionValueList = consumeResultList.Select(x => x.TopicPartitionOffset.Partition.Value).Distinct();
+                               foreach(var index in partionValueList)
+                                {
+                                    var listPartionList = consumeResultList.Where(x => x.TopicPartitionOffset.Partition.Value == index);
+                                    if(listPartionList != null && listPartionList.Count() > 0)
+                                    {
+                                        foreach (var consumeResult in listPartionList)
+                                        {
+                                            Console.WriteLine($"Received message at {consumeResult.TopicPartitionOffset}: {consumeResult.Value}");
+                                            //handler func 执行具体业务
+
+                                            offsets.Add(consumeResult.TopicPartitionOffset);
+                                        }
+                                        Console.WriteLine("Commit");
+                                        //提交
+                                        var lastOffset = listPartionList.LastOrDefault() ;
+                                        consumer.Commit(lastOffset);
+                                    }
                                 }
+
+                                //foreach (var consumeResult in consumeResultList)
+                                //{
+                                //    Console.WriteLine($"Received message at {consumeResult.TopicPartitionOffset}: {consumeResult.Value}");
+                                //    //handler func 执行具体业务
+
+                                //    offsets.Add(consumeResult.TopicPartitionOffset);
+                                //}
                             }
                             catch (KafkaException e)
                             {
@@ -312,10 +334,10 @@ namespace Confluent.Kafka.Examples.ConsumerExample
                             }
                             finally
                             {
-                                if (offsets != null && offsets.Count > 0)
-                                {
-                                    consumer.Commit();
-                                }
+                                //if (offsets != null && offsets.Count > 0)
+                                //{
+                                //    consumer.Commit();
+                                //}
                             }
 
                         }
