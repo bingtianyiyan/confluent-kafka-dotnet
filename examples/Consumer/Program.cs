@@ -137,7 +137,7 @@ namespace Confluent.Kafka.Examples.ConsumerExample
             var config = new ConsumerConfig
             {
                 BootstrapServers = brokerList,
-                GroupId = "csharp-consumer",
+                GroupId = "csharp-consumer-2",
                 EnableAutoCommit = false,
                 StatisticsIntervalMs = 5000,
                 SessionTimeoutMs = 6000,
@@ -145,7 +145,7 @@ namespace Confluent.Kafka.Examples.ConsumerExample
                 EnablePartitionEof = true
             };
             //每批次大小
-            const int batchNum = 5;
+            const int batchNum = 1000;
 
             // Note: If a key or value deserializer is not set (as is the case below), the 
             // deserializer corresponding to the appropriate type from Confluent.Kafka.Deserializers
@@ -156,18 +156,18 @@ namespace Confluent.Kafka.Examples.ConsumerExample
                 // Note: All handlers are called on the main .Consume thread.
                 .SetErrorHandler((_, e) => Console.WriteLine($"Error: {e.Reason}"))
                 // .SetStatisticsHandler((_, json) => Console.WriteLine($"Statistics: {json}"))
-                .SetPartitionsAssignedHandler((c, partitions) =>
-                {
-                    Console.WriteLine($"Assigned partitions: [{string.Join(", ", partitions)}]");
-                    // possibly manually specify start offsets or override the partition assignment provided by
-                    // the consumer group by returning a list of topic/partition/offsets to assign to, e.g.:
-                    // 
-                    // return partitions.Select(tp => new TopicPartitionOffset(tp, externalOffsets[tp]));
-                })
-                .SetPartitionsRevokedHandler((c, partitions) =>
-                {
-                    Console.WriteLine($"Revoking assignment: [{string.Join(", ", partitions)}]");
-                })
+                //.SetPartitionsAssignedHandler((c, partitions) =>
+                //{
+                //    Console.WriteLine($"Assigned partitions: [{string.Join(", ", partitions)}]");
+                //    // possibly manually specify start offsets or override the partition assignment provided by
+                //    // the consumer group by returning a list of topic/partition/offsets to assign to, e.g.:
+                //    // 
+                //    // return partitions.Select(tp => new TopicPartitionOffset(tp, externalOffsets[tp]));
+                //})
+                //.SetPartitionsRevokedHandler((c, partitions) =>
+                //{
+                //    Console.WriteLine($"Revoking assignment: [{string.Join(", ", partitions)}]");
+                //})
                 .Build())
             {
                 consumer.Subscribe(topics);
@@ -178,16 +178,24 @@ namespace Confluent.Kafka.Examples.ConsumerExample
                     {
                         try
                         {
-                            ConsumeResult<Ignore, string> commitResult = null;
+                            IList<TopicPartitionOffset> offsets = new List<TopicPartitionOffset>();
                             try
                             {
                                 var consumeResultList = consumer.ConsumeBatch(cancellationToken, batchNum);
+#if DEBUG
+                                if (consumeResultList != null && consumeResultList.Count > 0)
+                                    Console.WriteLine($"Queue count:{consumeResultList?.Count()}");
+#endif
+                                if (consumeResultList == null || consumeResultList.Count == 0)
+                                {
+                                    continue;
+                                }
                                 foreach (var consumeResult in consumeResultList)
                                 {
                                     Console.WriteLine($"Received message at {consumeResult.TopicPartitionOffset}: {consumeResult.Value}");
                                     //handler func 执行具体业务
 
-                                    commitResult = consumeResult;
+                                    offsets.Add(consumeResult.TopicPartitionOffset);
                                 }
                             }
                             catch (KafkaException e)
@@ -200,10 +208,12 @@ namespace Confluent.Kafka.Examples.ConsumerExample
                             }
                             finally
                             {
-                                if (commitResult != null)
-                                {
-                                    consumer.Commit(commitResult);
-                                }
+                                if(offsets.Count > 0)
+                                consumer.Commit();
+                                //if (offsets != null && offsets.Count > 0)
+                                //{
+                                //    consumer.Commit(offsets);
+                                //}
                             }
 
                         }
@@ -267,16 +277,17 @@ namespace Confluent.Kafka.Examples.ConsumerExample
                 consumer.Subscribe(topics);
 
                 try
-                {
+                {                   
                     while (true)
                     {
                         try
                         {
-                            ConsumeResult<Ignore, string> commitResult = null;
+                            IList<TopicPartitionOffset> offsets = new List<TopicPartitionOffset>();
                             try
                             {
                                 var consumeResultList = consumer.ConsumeBatch(TimeSpan.FromSeconds(10), batchNum);
 #if DEBUG 
+                                if(consumeResultList != null)
                                 Console.WriteLine($"Queue count:{consumeResultList?.Count()}");
 #endif
                                 if(consumeResultList == null || consumeResultList.Count == 0)
@@ -288,7 +299,7 @@ namespace Confluent.Kafka.Examples.ConsumerExample
                                     Console.WriteLine($"Received message at {consumeResult.TopicPartitionOffset}: {consumeResult.Value}");
                                     //handler func 执行具体业务
 
-                                    commitResult = consumeResult;
+                                    offsets.Add(consumeResult.TopicPartitionOffset);
                                 }
                             }
                             catch (KafkaException e)
@@ -301,9 +312,9 @@ namespace Confluent.Kafka.Examples.ConsumerExample
                             }
                             finally
                             {
-                                if (commitResult != null)
+                                if (offsets != null && offsets.Count > 0)
                                 {
-                                    consumer.Commit(commitResult);
+                                    consumer.Commit();
                                 }
                             }
 
@@ -384,16 +395,11 @@ namespace Confluent.Kafka.Examples.ConsumerExample
 #if DEBUG
             var mode = "subscribeBatchNew";// args[0];
             var brokerList = "127.0.0.1:9092";// args[1];
-            var topics = new List<string>() { "test" };// args.Skip(2).ToList();
+            var topics = new List<string>() { "test1" };// args.Skip(2).ToList();
 #else
-            if (args.Length < 3)
-            {
-                PrintUsage();
-                return;
-            }
-           var mode =  args[0];
-            var brokerList =args[1];
-            var topics =  args.Skip(2).ToList();
+              var mode = "subscribeBatchNew";// args[0];
+            var brokerList = "127.0.0.1:9092";// args[1];
+            var topics = new List<string>() { "test" };// args.Skip(2).ToList();
 #endif
 
             Console.WriteLine($"Started consumer, Ctrl-C to stop consuming");
