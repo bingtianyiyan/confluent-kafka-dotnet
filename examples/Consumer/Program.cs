@@ -416,7 +416,7 @@ namespace Confluent.Kafka.Examples.ConsumerExample
         {
 #if DEBUG
             var mode = "subscribeBatchNew";// args[0];
-            var brokerList = "127.0.0.1:9092";// args[1];
+            var brokerList = "172.28.32.167:9092";// args[1];
             var topics = new List<string>() { "test1" };// args.Skip(2).ToList();
 #else
               var mode = "subscribeBatchNew";// args[0];
